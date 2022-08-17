@@ -3,7 +3,7 @@ module github.com/finiteloopme/xds-from-scratch
 go 1.19
 
 require (
-	github.com/finiteloopme/goutils v0.0.0-20220814215202-be2bcb8fe673
+	github.com/finiteloopme/goutils v0.0.0-20220817051949-f7b72cedcdc1
 	github.com/kelseyhightower/envconfig v1.4.0
 	google.golang.org/genproto v0.0.0-20220815135757-37a418bb8959
 	google.golang.org/grpc v1.48.0
