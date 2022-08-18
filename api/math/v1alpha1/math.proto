@@ -1,0 +1,30 @@
+syntax="proto3";
+
+option go_package="github.com/finiteloopme/demo/learning-xds/api/gen/proto/go/math/v1alpha1";
+
+package math.v1alpha1;
+
+message Number{
+    float content = 1;
+}
+
+message GetSquareOfRequest{
+    Number req = 1;
+}
+
+message GetSquareOfResponse{
+    Number res = 1;
+}
+
+message StreamSquareOfRequest{
+    Number req = 1;
+}
+
+message StreamSquareOfResponse{
+    Number res = 1;
+}
+
+service MathOperation {
+    rpc GetSquareOf(GetSquareOfRequest) returns (GetSquareOfResponse);
+    rpc StreamSquareOf(stream StreamSquareOfRequest) returns (stream StreamSquareOfResponse);
+}
