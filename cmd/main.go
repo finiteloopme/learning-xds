@@ -8,6 +8,7 @@ import (
 	"github.com/finiteloopme/goutils/pkg/log"
 	client "github.com/finiteloopme/xds-from-scratch/internal/client"
 	server "github.com/finiteloopme/xds-from-scratch/internal/server"
+	xdsServer "github.com/finiteloopme/xds-from-scratch/pkg/xds/server"
 )
 
 func main() {
@@ -24,17 +25,23 @@ func main() {
 
 	switch *appType {
 	case "grpc-server":
-		runServer()
+		RunServer()
 	case "grpc-client":
-		runServer()
+		RunServer()
+	case "xds-server":
+		RunXDSServer()
 	default:
 		log.Fatal(fmt.Errorf("Unable to run the application.  Only valid type is server or client.  \n e.g: xds-from-scratch --type=grpc-server --host=127.0.0.1 --port=9010"))
 	}
 }
 
-func runClient() {
+func RunClient() {
 	client.RunClient()
 }
-func runServer() {
+func RunServer() {
 	server.RunServer()
+}
+
+func RunXDSServer() {
+	xdsServer.DiscoverAndReconcile()
 }
