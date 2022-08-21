@@ -11,7 +11,7 @@ import (
 )
 
 type Callbacks struct {
-	Signal   chan struct{}
+	Signal   *chan struct{}
 	Debug    bool
 	Fetches  int
 	Requests int
@@ -37,7 +37,7 @@ func (cb *Callbacks) OnStreamRequest(id int64, r *discoverySvc.DiscoveryRequest)
 	defer cb.mu.Unlock()
 	cb.Requests++
 	if cb.Signal != nil {
-		close(cb.Signal)
+		close(*cb.Signal)
 		cb.Signal = nil
 	}
 	return nil
@@ -52,7 +52,7 @@ func (cb *Callbacks) OnFetchRequest(ctx context.Context, req *discoverySvc.Disco
 	defer cb.mu.Unlock()
 	cb.Fetches++
 	if cb.Signal != nil {
-		close(cb.Signal)
+		close(*cb.Signal)
 		cb.Signal = nil
 	}
 	return nil

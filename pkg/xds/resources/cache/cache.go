@@ -16,6 +16,7 @@ type XDSCache struct {
 	cache           cacheV3.SnapshotCache
 	snapshotVersion int
 	nodeId          string
+	ctx             context.Context
 }
 
 func (xdsCache *XDSCache) UpdateSnapshotVersion() int {
@@ -32,10 +33,11 @@ func (xdsCache *XDSCache) GetNodeId() string {
 	return xdsCache.nodeId
 }
 
-func NewCache() *XDSCache {
+func NewCache(_ctx context.Context) *XDSCache {
 	var xdsCache XDSCache
 	xdsCache.cache = cacheV3.NewSnapshotCache(true, cacheV3.IDHash{}, nil)
 	xdsCache.UpdateSnapshotVersion()
+	xdsCache.ctx = _ctx
 	// xdsCache.nodeId = xdsCache.cache.GetStatusKeys()[0]
 
 	return &xdsCache
@@ -87,7 +89,9 @@ func (xdsCache *XDSCache) UpdateSnapshot(clusters []types.Resource, listeners []
 	// 	os.Exit(1)
 	// }
 
-	err = xdsCache.cache.SetSnapshot(context.Background(), xdsCache.nodeId, snap)
+	// err = xdsCache.cache.SetSnapshot(context.Background(), xdsCache.nodeId, snap)
+	// err = xdsCache.cache.SetSnapshot(xdsCache.ctx, xdsCache.nodeId, snap)
+	err = xdsCache.cache.SetSnapshot(xdsCache.ctx, xdsCache.GetCache().GetStatusKeys()[0], snap)
 	if err != nil {
 		log.Fatal(fmt.Errorf("Could not set snapshot: %v", err))
 	}

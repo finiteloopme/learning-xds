@@ -29,10 +29,9 @@ import (
 	xCache "github.com/finiteloopme/xds-from-scratch/pkg/xds/resources/cache"
 	ads "github.com/finiteloopme/xds-from-scratch/pkg/xds/server/ads"
 	"github.com/golang/protobuf/ptypes"
+	"github.com/kelseyhightower/envconfig"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/types/known/wrapperspb"
-
-	"github.com/kelseyhightower/envconfig"
 	// log "github.com/sirupsen/logrus"
 )
 
@@ -42,13 +41,13 @@ type XDSServer struct {
 	Hostname             string `default:"127.0.0.1"`
 	Port                 int32  `default:"18000"`
 	Ctx                  context.Context
-	MaxConcurrentStreams int32 `default:"1000"`
+	MaxConcurrentStreams uint32 `default:"1000000"`
 	XCache               xCache.XDSCache
 	// Ads (aggregated) mode ?
 	AdsMode bool `default:"true"`
 }
 
-func NewXDSServer(cb *ads.Callbacks) XDSServer {
+func NewXDSServer(cb *ads.Callbacks) *XDSServer {
 	// signal := make(chan struct{})
 	// cb := &ads.Callbacks{
 	// 	Signal:   signal,
@@ -56,7 +55,7 @@ func NewXDSServer(cb *ads.Callbacks) XDSServer {
 	// 	Requests: 0,
 	// }
 	ctx := context.Background()
-	cache := *xCache.NewCache()
+	cache := *xCache.NewCache(ctx)
 
 	xdsServer := XDSServer{
 		Server: serverV3.NewServer(
@@ -65,22 +64,25 @@ func NewXDSServer(cb *ads.Callbacks) XDSServer {
 			cb,
 		),
 		AggregatesDS: ads.Callbacks{},
-		Ctx:          context.Background(),
+		Ctx:          ctx,
 		XCache:       cache,
 	}
 	envconfig.Process("XDS", &xdsServer)
-	return xdsServer
+	return &xdsServer
 }
 
 func (server *XDSServer) GetURI() string {
 	return fmt.Sprint(server.Hostname, ":", server.Port)
 }
 
+const grpcMaxConcurrentStreams = 1000
+
 func (server *XDSServer) RunXdsServer() {
-	// var options []grpc.ServerOption
-	// options = append(options, grpc.MaxConcurrentStreams(server.MaxConcurrentStreams))
-	// grpcServer := grpc.NewServer(options)
-	grpcServer := grpc.NewServer()
+	opts := []grpc.ServerOption{grpc.MaxConcurrentStreams(server.MaxConcurrentStreams)}
+	// if creds, err := xdscreds.NewServerCredentials(
+	// 	xdscreds.ServerOptions{FallbackCreds: insecure.NewCredentials()}); err != nil {
+	// }
+	grpcServer := grpc.NewServer(opts...)
 	listener, err := net.Listen("tcp", fmt.Sprint(server.GetURI()))
 	if err != nil {
 		log.Fatal(fmt.Errorf("Error listening on [%v]: %v", server.GetURI(), err))
@@ -88,13 +90,19 @@ func (server *XDSServer) RunXdsServer() {
 	if server.AdsMode {
 		// Register ADS
 		discoverySvc.RegisterAggregatedDiscoveryServiceServer(grpcServer, server.Server)
+		log.Info("Registered ADS")
 	} else {
 		// Register individual services
 		endpointSvc.RegisterEndpointDiscoveryServiceServer(grpcServer, server.Server)
+		log.Info("Registered eDS")
 		clusterSvc.RegisterClusterDiscoveryServiceServer(grpcServer, server.Server)
+		log.Info("Registered cDS")
 		routeSvc.RegisterRouteDiscoveryServiceServer(grpcServer, server.Server)
+		log.Info("Registered rDS")
 		listenerSvc.RegisterListenerDiscoveryServiceServer(grpcServer, server.Server)
+		log.Info("Registered lDS")
 		secretSvc.RegisterSecretDiscoveryServiceServer(grpcServer, server.Server)
+		log.Info("Registered sDS")
 	}
 	log.Info("xDS Management Server started at: " + server.GetURI())
 
@@ -109,8 +117,8 @@ func (server *XDSServer) RunXdsServer() {
 }
 
 const (
-	backendHostName = "127.0.0.1"
-	listenerName    = "listener_0"
+	backendHostName = "be.cluster.local"
+	listenerName    = "be-srv"
 	routeConfigName = "be-srv-route"
 	clusterName     = "be-srv-cluster"
 	virtualHostName = "be-srv-vs"
@@ -136,12 +144,12 @@ func (u *UpstreamPorts) Set(port string) error {
 	return nil
 }
 
-var upstreamPorts UpstreamPorts = UpstreamPorts{5001, 5002, 5003}
+var upstreamPorts UpstreamPorts = UpstreamPorts{50051, 50052, 50053}
 
 func DiscoverAndReconcile() {
 	signal := make(chan struct{})
 	cb := &ads.Callbacks{
-		Signal:   signal,
+		Signal:   &signal,
 		Fetches:  0,
 		Requests: 0,
 	}
@@ -160,7 +168,7 @@ func DiscoverAndReconcile() {
 			v := upstreamPorts[currentHost]
 			currentHost++
 			// ENDPOINT
-			log.Info("Discovered ENDPOINT [remoteHost:port] " + backendHostName + ":" + fmt.Sprint(v))
+			log.Info(">>>>>>>>>>>>>>>>>>> creating ENDPOINT [remoteHost:port] " + backendHostName + ":" + fmt.Sprint(v))
 			hst := &core.Address{Address: &core.Address_SocketAddress{
 				SocketAddress: &core.SocketAddress{
 					Address:  backendHostName,
